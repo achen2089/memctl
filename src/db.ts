@@ -57,6 +57,7 @@ export function openDb(config: Config): Database {
 }
 
 export function clearIndex(db: Database): void {
+  db.run("DELETE FROM chunks_fts");
   db.run("DELETE FROM chunks");
 }
 
