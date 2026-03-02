@@ -4,8 +4,8 @@ export interface Chunk {
   endLine: number;
 }
 
-const TARGET_SIZE = 1000;
-const MIN_SIZE = 200;
+const TARGET_SIZE = 800;
+const MIN_SIZE = 50;
 
 export function chunkText(text: string): Chunk[] {
   const lines = text.split("\n");
@@ -16,8 +16,20 @@ export function chunkText(text: string): Chunk[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Start a new chunk on heading boundaries if current is big enough
-    if (line.startsWith("#") && current.length >= MIN_SIZE) {
+    // Split on headings if current chunk has content
+    if (line.startsWith("#") && current.trim().length >= MIN_SIZE) {
+      chunks.push({
+        text: current.trim(),
+        startLine,
+        endLine: i - 1,
+      });
+      current = "";
+      startLine = i;
+    }
+
+    // Split on daily log entries (lines starting with "- **")
+    // Each bullet entry becomes its own chunk for granular search
+    if (line.startsWith("- **") && current.trim().length >= MIN_SIZE) {
       chunks.push({
         text: current.trim(),
         startLine,
@@ -31,6 +43,17 @@ export function chunkText(text: string): Chunk[] {
 
     // Split on paragraph boundaries when exceeding target
     if (current.length >= TARGET_SIZE && line.trim() === "") {
+      chunks.push({
+        text: current.trim(),
+        startLine,
+        endLine: i,
+      });
+      current = "";
+      startLine = i + 1;
+    }
+
+    // Force split if a single chunk gets too big (2x target)
+    if (current.length >= TARGET_SIZE * 2) {
       chunks.push({
         text: current.trim(),
         startLine,
