@@ -13,8 +13,17 @@ export async function extractText(filePath: string): Promise<string> {
 }
 
 async function extractPdf(filePath: string): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
+  const { PDFParse } = await import("pdf-parse");
   const buffer = readFileSync(filePath);
-  const data = await pdfParse(buffer);
-  return data.text;
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  await parser.load();
+  const result = await parser.getText();
+  parser.destroy();
+
+  // result.pages is an array of {text, num}
+  if (result?.pages && Array.isArray(result.pages)) {
+    return result.pages.map((p: any) => p.text).join("\n\n");
+  }
+
+  throw new Error("Failed to extract text from PDF");
 }
