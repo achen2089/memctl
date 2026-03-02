@@ -57,8 +57,11 @@ export function openDb(config: Config): Database {
 }
 
 export function clearIndex(db: Database): void {
-  db.run("DELETE FROM chunks_fts");
-  db.run("DELETE FROM chunks");
+  db.run("DROP TRIGGER IF EXISTS chunks_ai");
+  db.run("DROP TRIGGER IF EXISTS chunks_ad");
+  db.run("DROP TRIGGER IF EXISTS chunks_au");
+  db.run("DROP TABLE IF EXISTS chunks_fts");
+  db.run("DROP TABLE IF EXISTS chunks");
 }
 
 export function insertChunk(

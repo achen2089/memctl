@@ -33,10 +33,12 @@ export async function rebuildCommand(): Promise<void> {
   }
 
   console.log("Rebuilding search index...");
-  const db = openDb(config);
+  let db = openDb(config);
 
   try {
     clearIndex(db);
+    db.close();
+    db = openDb(config); // reopens and recreates tables + triggers
 
     const mdFiles = walkMd(memDir);
     console.log(`Found ${mdFiles.length} markdown file(s).`);
