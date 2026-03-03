@@ -9,6 +9,7 @@ import { todayCommand } from "./commands/today";
 import { listCommand } from "./commands/list";
 import { rebuildCommand } from "./commands/rebuild";
 import { configCommand } from "./commands/config";
+import { saveCommand } from "./commands/save";
 
 const program = new Command();
 
@@ -103,6 +104,20 @@ program
   .action(async () => {
     try {
       await rebuildCommand();
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("save <url>")
+  .description("Save a webpage to memory")
+  .option("-s, --scope <scope>", "scope the saved page")
+  .option("-t, --title <title>", "override the page title")
+  .action(async (url: string, options) => {
+    try {
+      await saveCommand(url, options);
     } catch (err: any) {
       console.error(`Error: ${err.message}`);
       process.exit(1);
