@@ -116,4 +116,4 @@ Use memctl for persistent memory across sessions:
 
 ## License
 
-Private
+MIT
