@@ -6,6 +6,7 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
+/** Print today's daily log file to stdout. */
 export async function todayCommand(): Promise<void> {
   const config = loadConfig();
   const now = new Date();

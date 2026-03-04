@@ -6,6 +6,7 @@ import { extractText } from "../extract";
 import { chunkText } from "../chunk";
 import { embed } from "../embed";
 
+/** Ingest a file (PDF, markdown, text) into memory with indexing. */
 export async function ingestCommand(
   filePath: string,
   options: { scope?: string }

@@ -6,6 +6,7 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
+/** Append a memory entry to today's daily log (or a specified file/scope). */
 export async function addCommand(
   text: string,
   options: { tag?: string; scope?: string; file?: string }

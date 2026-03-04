@@ -4,12 +4,26 @@ import type { ChunkRow } from "./db";
 import { getAllChunksWithEmbeddings, searchFts } from "./db";
 import { embed } from "./embed";
 
+/** A search result with file path, matching content, score, and location. */
 export interface SearchResult {
   filePath: string;
   content: string;
   score: number;
+  startLine: number;
+  endLine: number;
 }
 
+/** Search options for hybridSearch. */
+export interface SearchOptions {
+  limit: number;
+  scope?: string;
+  keywordOnly?: boolean;
+}
+
+/**
+ * Compute cosine similarity between two embedding vectors.
+ * Both vectors should be L2-normalized, so this is equivalent to dot product.
+ */
 function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   let dot = 0;
   let normA = 0;
@@ -19,48 +33,73 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
     normA += a[i] * a[i];
     normB += b[i] * b[i];
   }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
 }
 
+/**
+ * Perform hybrid search combining FTS5 keyword search and vector similarity.
+ *
+ * Scoring:
+ * - FTS5 BM25 scores are normalized to 0-1 using rank inversion
+ * - Vector cosine similarity (already -1 to 1 for normalized vectors) is mapped to 0-1
+ * - Final score: 0.4 * fts + 0.6 * vector, scaled to 0-100%
+ *
+ * Deduplication: when multiple chunks from the same file match, only the
+ * highest-scoring chunk is returned.
+ */
 export async function hybridSearch(
   db: Database,
   query: string,
   config: Config,
-  options: { limit: number; scope?: string; keywordOnly?: boolean }
+  options: SearchOptions
 ): Promise<SearchResult[]> {
   const scopePrefix = options.scope ? `scopes/${options.scope}/` : undefined;
 
-  // FTS search
-  const ftsResults = searchFts(db, query, options.limit * 2, scopePrefix);
-  const ftsMap = new Map<string, { content: string; score: number }>();
+  // FTS search — fetch more than needed for merging
+  const ftsResults = searchFts(db, query, options.limit * 3, scopePrefix);
+  const ftsMap = new Map<string, { content: string; score: number; startLine: number; endLine: number; filePath: string }>();
 
-  // Normalize FTS scores to 0-1 range
-  const maxFtsRank = ftsResults.length > 0 ? Math.max(...ftsResults.map((_, i) => ftsResults.length - i)) : 1;
-  for (let i = 0; i < ftsResults.length; i++) {
-    const r = ftsResults[i];
-    const key = `${r.file_path}:${r.chunk_index}`;
-    const score = (ftsResults.length - i) / maxFtsRank;
-    ftsMap.set(key, { content: r.content, score });
+  // Normalize FTS BM25 ranks to 0-1.
+  // FTS5 rank is negative (lower = better match). We invert and normalize.
+  if (ftsResults.length > 0) {
+    const ranks = ftsResults.map((r) => r.rank);
+    const minRank = Math.min(...ranks); // best match (most negative)
+    const maxRank = Math.max(...ranks); // worst match
+    const range = maxRank - minRank;
+
+    for (const r of ftsResults) {
+      const key = `${r.file_path}:${r.chunk_index}`;
+      // Invert: best rank (most negative) gets score 1.0
+      const score = range === 0 ? 1.0 : (maxRank - r.rank) / range;
+      ftsMap.set(key, {
+        content: r.content,
+        score,
+        startLine: r.start_line,
+        endLine: r.end_line,
+        filePath: r.file_path,
+      });
+    }
   }
 
   if (options.keywordOnly || !config.embeddings_enabled) {
-    // Return FTS-only results
-    const results: SearchResult[] = [];
-    for (const [, value] of ftsMap) {
-      results.push({
-        filePath: ftsResults[results.length]?.file_path ?? "",
-        content: value.content,
-        score: value.score * 100,
-      });
-    }
-    return results.slice(0, options.limit);
+    return dedup(
+      Array.from(ftsMap.entries()).map(([, val]) => ({
+        filePath: val.filePath,
+        content: val.content,
+        score: val.score * 100,
+        startLine: val.startLine,
+        endLine: val.endLine,
+      })),
+      options.limit
+    );
   }
 
   // Vector search
   const queryEmbedding = await embed(query, config);
   const allChunks = getAllChunksWithEmbeddings(db, scopePrefix);
 
-  const vectorScores = new Map<string, { filePath: string; content: string; score: number }>();
+  const vectorScores = new Map<string, { filePath: string; content: string; score: number; startLine: number; endLine: number }>();
   for (const chunk of allChunks) {
     if (!chunk.embedding) continue;
     const chunkEmbedding = new Float32Array(
@@ -69,11 +108,15 @@ export async function hybridSearch(
       chunk.embedding.byteLength / 4
     );
     const sim = cosineSimilarity(queryEmbedding, chunkEmbedding);
+    // Map cosine similarity from [-1, 1] to [0, 1]
+    const normalizedSim = (sim + 1) / 2;
     const key = `${chunk.file_path}:${chunk.chunk_index}`;
     vectorScores.set(key, {
       filePath: chunk.file_path,
       content: chunk.content,
-      score: sim,
+      score: normalizedSim,
+      startLine: chunk.start_line,
+      endLine: chunk.end_line,
     });
   }
 
@@ -82,28 +125,47 @@ export async function hybridSearch(
 
   for (const [key, fts] of ftsMap) {
     const vec = vectorScores.get(key);
-    const ftsScore = fts.score;
     const vecScore = vec ? vec.score : 0;
-    const hybridScore = 0.4 * ftsScore + 0.6 * vecScore;
+    const hybridScore = (0.4 * fts.score + 0.6 * vecScore) * 100;
     combined.set(key, {
-      filePath: ftsResults.find((r) => `${r.file_path}:${r.chunk_index}` === key)?.file_path ?? "",
+      filePath: fts.filePath,
       content: fts.content,
-      score: hybridScore * 100,
+      score: hybridScore,
+      startLine: fts.startLine,
+      endLine: fts.endLine,
     });
   }
 
   for (const [key, vec] of vectorScores) {
     if (!combined.has(key)) {
-      const hybridScore = 0.6 * vec.score;
+      const hybridScore = 0.6 * vec.score * 100;
       combined.set(key, {
         filePath: vec.filePath,
         content: vec.content,
-        score: hybridScore * 100,
+        score: hybridScore,
+        startLine: vec.startLine,
+        endLine: vec.endLine,
       });
     }
   }
 
   const results = Array.from(combined.values());
-  results.sort((a, b) => b.score - a.score);
-  return results.slice(0, options.limit);
+  return dedup(results, options.limit);
+}
+
+/**
+ * Deduplicate results: keep only the highest-scoring chunk per file,
+ * then sort by score descending and limit.
+ */
+function dedup(results: SearchResult[], limit: number): SearchResult[] {
+  const bestPerFile = new Map<string, SearchResult>();
+  for (const r of results) {
+    const existing = bestPerFile.get(r.filePath);
+    if (!existing || r.score > existing.score) {
+      bestPerFile.set(r.filePath, r);
+    }
+  }
+  const sorted = Array.from(bestPerFile.values());
+  sorted.sort((a, b) => b.score - a.score);
+  return sorted.slice(0, limit);
 }

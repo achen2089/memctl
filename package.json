@@ -1,5 +1,6 @@
 {
   "name": "memctl",
+  "version": "0.2.0",
   "module": "index.ts",
   "type": "module",
   "bin": { "memctl": "./src/index.ts" },

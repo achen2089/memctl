@@ -56,6 +56,7 @@ async function fetchPage(url: string): Promise<{ title: string; text: string }> 
   return { title, text };
 }
 
+/** Save a webpage to memory: fetch, extract text, create markdown, and index. */
 export async function saveCommand(
   url: string,
   options: { scope?: string; title?: string }

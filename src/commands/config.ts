@@ -1,5 +1,6 @@
 import { loadConfig, getConfigPath } from "../config";
 
+/** Display the current memctl configuration. */
 export async function configCommand(): Promise<void> {
   const config = loadConfig();
   const configPath = getConfigPath();

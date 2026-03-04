@@ -22,6 +22,7 @@ function printTree(dir: string, prefix: string, baseDir: string): void {
   }
 }
 
+/** Display memory files as a tree structure. */
 export async function listCommand(options: { dir?: string }): Promise<void> {
   const config = loadConfig();
   let targetDir = config.memory_dir;

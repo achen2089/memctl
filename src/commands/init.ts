@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "fs";
 import { loadConfig, saveConfig, getConfigPath, getConfigDir } from "../config";
 
+/** Initialize memctl config and memory directory structure. */
 export async function initCommand(): Promise<void> {
   const configPath = getConfigPath();
   const configDir = getConfigDir();
