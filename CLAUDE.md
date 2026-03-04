@@ -166,6 +166,38 @@ memctl rebuild
 memctl config
 ```
 
+## v0.2 — Improvements
+
+### Per-Entry Chunking (CRITICAL)
+The main quality bottleneck in v0.1 was whole-file chunking — search returns entire files instead of individual memories. Fix this:
+
+1. **Daily logs**: Each `- **HH:MM** ...` bullet entry should be its OWN chunk. A single daily file with 20 entries should produce 20 chunks, not 1-3.
+2. **Heading-delimited files**: Split on `## ` headings. Each section = one chunk.
+3. **`---` separators**: Split on horizontal rules too.
+4. **Small chunks are fine** — a single sentence memory is a valid chunk. Don't merge small entries just to hit a size target.
+5. **Include the heading/date as context**: When chunking a section under `## Preferences`, prefix the chunk content with "Preferences: ..." so the embedding has context.
+6. **Keep the file path + line numbers** on each chunk for attribution.
+
+### Search Quality Improvements
+1. **Snippet highlighting**: When returning search results, show only the matching chunk, not the whole file.
+2. **Better FTS5 queries**: Use prefix matching (`term*`) to handle abbreviation mismatches (e.g. "determinant" should match "det").
+3. **Score normalization**: Normalize vector similarity scores to 0-100% range that's meaningful (current scores are confusingly low).
+4. **Deduplication**: If multiple chunks from the same file match, show the best one (or group them).
+
+### Open Source Polish
+1. **Remove any hardcoded personal paths** — all paths come from config
+2. **Default memory_dir should be `~/.memctl/memory/`** (not iCloud)
+3. **Add `--version` flag** that reads from package.json
+4. **Add `--help` examples** to each subcommand
+5. **Clean up error messages** — user-friendly, no stack traces
+6. **Add a `--json` flag to search** for machine-readable output (for AI agent consumption)
+7. **Add `--verbose` flag to rebuild** showing progress
+
+### Code Quality
+1. **Add proper TypeScript types everywhere** — no `any`
+2. **Add JSDoc comments on exported functions**
+3. **Consistent error handling pattern** across all commands
+
 ## What NOT to Do
 
 - No server mode, no HTTP API
