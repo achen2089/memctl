@@ -13,6 +13,7 @@ import { listCommand } from "./commands/list";
 import { rebuildCommand } from "./commands/rebuild";
 import { configCommand } from "./commands/config";
 import { saveCommand } from "./commands/save";
+import { grepCommand } from "./commands/grep";
 
 // Read version from package.json
 const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
@@ -160,6 +161,29 @@ Examples:
   .action(async (url: string, options: { scope?: string; title?: string }) => {
     try {
       await saveCommand(url, options);
+    } catch (err: unknown) {
+      console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("grep <pattern>")
+  .description("Search memory files by pattern (like grep)")
+  .option("-s, --scope <scope>", "limit to a scope")
+  .option("-r, --regex", "treat pattern as a regular expression")
+  .option("-i, --ignore-case", "case-insensitive matching (default: true)")
+  .option("-j, --json", "output matches as JSON")
+  .option("-n, --limit <n>", "max matches (default: 50)", "50")
+  .addHelpText("after", `
+Examples:
+  $ memctl grep "SQLite"
+  $ memctl grep "eigen.*" --regex
+  $ memctl grep "preference" --scope claude
+  $ memctl grep "TODO" --json`)
+  .action(async (pattern: string, options: { scope?: string; regex?: boolean; ignoreCase?: boolean; json?: boolean; limit?: string }) => {
+    try {
+      await grepCommand(pattern, options);
     } catch (err: unknown) {
       console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
