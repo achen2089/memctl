@@ -24,7 +24,33 @@ const program = new Command();
 program
   .name("memctl")
   .description("Personal memory CLI — markdown-first, vector-searchable, zero servers")
-  .version(pkg.version, "-V, --version", "print the current version");
+  .version(pkg.version, "-V, --version", "print the current version")
+  .addHelpText("after", `
+Quick Start:
+  $ memctl init                          # set up config and memory directory
+  $ memctl add "something worth remembering"
+  $ memctl add "use Bun over Node" -t decision
+  $ memctl search "that thing about Bun"  # hybrid keyword + semantic search
+  $ memctl grep "Bun"                     # fast raw pattern match (no index)
+  $ memctl ingest paper.pdf               # extract and index a PDF
+  $ memctl save https://example.com       # save a webpage to memory
+  $ memctl today                          # see what you logged today
+
+Scoped Memories (per-agent/tool):
+  $ memctl add "user prefers dark mode" -s claude
+  $ memctl search "preferences" -s claude
+  $ memctl grep "TODO" -s pufferbot
+
+Search Modes:
+  search     Hybrid FTS5 + vector similarity (needs index)
+  grep       Raw pattern matching across files (no index, instant)
+
+Output:
+  --json     Machine-readable JSON output (search, grep)
+  --verbose  Detailed progress (rebuild)
+
+Config: ~/.memctl/config.yaml
+Docs:   https://github.com/achen2089/memctl`);
 
 program
   .command("init")
