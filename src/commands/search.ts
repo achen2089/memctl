@@ -6,7 +6,6 @@ import type { SearchResult } from "../search";
 /** Options for the search command. */
 interface SearchCommandOptions {
   limit?: string;
-  scope?: string;
   keyword?: boolean;
   json?: boolean;
 }
@@ -50,7 +49,6 @@ export async function searchCommand(
     const limit = options.limit ? parseInt(options.limit, 10) : 5;
     const results = await hybridSearch(db, query, config, {
       limit,
-      scope: options.scope,
       keywordOnly: options.keyword,
     });
 

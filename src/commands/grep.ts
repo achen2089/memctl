@@ -3,7 +3,6 @@ import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 
 interface GrepOptions {
-  scope?: string;
   regex?: boolean;
   ignoreCase?: boolean;
   json?: boolean;
@@ -43,11 +42,7 @@ export async function grepCommand(
   options: GrepOptions
 ): Promise<void> {
   const config = loadConfig();
-  let searchDir = config.memory_dir;
-
-  if (options.scope) {
-    searchDir = join(config.memory_dir, "scopes", options.scope);
-  }
+  const searchDir = config.memory_dir;
 
   const flags = options.ignoreCase !== false ? "gi" : "g";
   let re: RegExp;

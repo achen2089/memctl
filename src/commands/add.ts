@@ -6,10 +6,10 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
-/** Append a memory entry to today's daily log (or a specified file/scope). */
+/** Append a memory entry to today's daily log (or a specified file). */
 export async function addCommand(
   text: string,
-  options: { tag?: string; scope?: string; file?: string }
+  options: { tag?: string; file?: string }
 ): Promise<void> {
   const config = loadConfig();
   const now = new Date();
@@ -20,12 +20,6 @@ export async function addCommand(
 
   if (options.file) {
     filePath = join(config.memory_dir, options.file);
-  } else if (options.scope) {
-    const scopeDir = join(config.memory_dir, "scopes", options.scope, "daily");
-    if (!existsSync(scopeDir)) {
-      mkdirSync(scopeDir, { recursive: true });
-    }
-    filePath = join(scopeDir, `${dateStr}.md`);
   } else {
     const dailyDir = join(config.memory_dir, "daily");
     if (!existsSync(dailyDir)) {

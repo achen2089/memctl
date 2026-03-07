@@ -35,11 +35,6 @@ Quick Start:
   $ memctl save https://example.com       # save a webpage to memory
   $ memctl today                          # see what you logged today
 
-Scoped Memories (per-agent/tool):
-  $ memctl add "user prefers dark mode" -s claude
-  $ memctl search "preferences" -s claude
-  $ memctl grep "TODO" -s pufferbot
-
 Search Modes:
   search     Hybrid FTS5 + vector similarity (needs index)
   grep       Raw pattern matching across files (no index, instant)
@@ -70,14 +65,13 @@ program
   .command("add <text>")
   .description("Append a memory to today's daily log")
   .option("-t, --tag <tag>", "tag the entry (e.g. decision, fact, preference)")
-  .option("-s, --scope <scope>", "write to a scoped folder (e.g. claude, pufferbot)")
   .option("-f, --file <file>", "write to a specific file instead of daily log")
   .addHelpText("after", `
 Examples:
   $ memctl add "prefer dark mode for all editors"
   $ memctl add "decided to use SQLite" --tag decision
-  $ memctl add "claude context" --scope claude`)
-  .action(async (text: string, options: { tag?: string; scope?: string; file?: string }) => {
+  $ memctl add "GitHub: achen2089" -f knowledge/me.md`)
+  .action(async (text: string, options: { tag?: string; file?: string }) => {
     try {
       await addCommand(text, options);
     } catch (err: unknown) {
@@ -90,16 +84,15 @@ program
   .command("search <query>")
   .description("Hybrid search: FTS5 keyword + vector similarity")
   .option("-n, --limit <n>", "max results (default: 5)", "5")
-  .option("-s, --scope <scope>", "limit to a scope")
   .option("-k, --keyword", "keyword-only, skip vector search")
   .option("-j, --json", "output results as JSON (for AI agent consumption)")
   .addHelpText("after", `
 Examples:
   $ memctl search "dark mode preference"
   $ memctl search "project decisions" --limit 10
-  $ memctl search "meeting notes" --scope claude --json
-  $ memctl search "sqlite" --keyword`)
-  .action(async (query: string, options: { limit?: string; scope?: string; keyword?: boolean; json?: boolean }) => {
+  $ memctl search "sqlite" --keyword
+  $ memctl search "docker ports" --json`)
+  .action(async (query: string, options: { limit?: string; keyword?: boolean; json?: boolean }) => {
     try {
       await searchCommand(query, options);
     } catch (err: unknown) {
@@ -111,14 +104,13 @@ Examples:
 program
   .command("ingest <path>")
   .description("Ingest a file into memory (PDF, markdown, or text)")
-  .option("-s, --scope <scope>", "scope the ingested file")
   .addHelpText("after", `
 Examples:
   $ memctl ingest paper.pdf
-  $ memctl ingest notes.md --scope research`)
-  .action(async (path: string, options: { scope?: string }) => {
+  $ memctl ingest notes.md`)
+  .action(async (path: string) => {
     try {
-      await ingestCommand(path, options);
+      await ingestCommand(path, {});
     } catch (err: unknown) {
       console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
@@ -177,13 +169,12 @@ Examples:
 program
   .command("save <url>")
   .description("Save a webpage to memory")
-  .option("-s, --scope <scope>", "scope the saved page")
   .option("-t, --title <title>", "override the page title")
   .addHelpText("after", `
 Examples:
   $ memctl save https://example.com/article
-  $ memctl save https://example.com --scope research --title "Research Paper"`)
-  .action(async (url: string, options: { scope?: string; title?: string }) => {
+  $ memctl save https://example.com --title "Research Paper"`)
+  .action(async (url: string, options: { title?: string }) => {
     try {
       await saveCommand(url, options);
     } catch (err: unknown) {
@@ -195,7 +186,6 @@ Examples:
 program
   .command("grep <pattern>")
   .description("Search memory files by pattern (like grep)")
-  .option("-s, --scope <scope>", "limit to a scope")
   .option("-r, --regex", "treat pattern as a regular expression")
   .option("-i, --ignore-case", "case-insensitive matching (default: true)")
   .option("-j, --json", "output matches as JSON")
@@ -204,9 +194,8 @@ program
 Examples:
   $ memctl grep "SQLite"
   $ memctl grep "eigen.*" --regex
-  $ memctl grep "preference" --scope claude
   $ memctl grep "TODO" --json`)
-  .action(async (pattern: string, options: { scope?: string; regex?: boolean; ignoreCase?: boolean; json?: boolean; limit?: string }) => {
+  .action(async (pattern: string, options: { regex?: boolean; ignoreCase?: boolean; json?: boolean; limit?: string }) => {
     try {
       await grepCommand(pattern, options);
     } catch (err: unknown) {
