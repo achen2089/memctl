@@ -1,118 +1,129 @@
 # memctl
 
-Personal memory CLI — markdown-first, vector-searchable, zero servers.
+Personal memory system for humans and AI agents.
 
-## What is this?
+## The Idea
 
-`memctl` is a command-line tool that gives you (and your AI agents) a persistent, searchable memory system. Memories are stored as plain markdown files, indexed with SQLite FTS5 + vector embeddings for hybrid search. No databases to run, no APIs to manage.
+One folder. Every tool points to it. Knowledge carries across sessions, tools, and devices.
 
-**Key ideas:**
-- **Markdown is the source of truth** — human-readable, version-controllable, syncs via iCloud/Dropbox/git
-- **SQLite index is a cache** — fully rebuildable from the markdown files at any time
-- **In-process embeddings** — uses `all-MiniLM-L6-v2` (23MB ONNX model), no Ollama or external services
-- **Works for humans and AI agents** — any tool that can run a shell command gets memory
+```
+~/Memory/                  ← synced via iCloud/Dropbox/git
+├── daily/                 ← what happened today
+├── knowledge/             ← long-lived facts and preferences
+├── documents/             ← ingested files (PDFs → markdown)
+├── projects/              ← project-specific context
+├── cs7295/                ← course materials, lectures, handouts
+├── books/                 ← reference books
+├── papers/                ← research papers
+└── scopes/                ← per-agent/tool memories
+```
 
-## Install
+Point any AI tool at this folder and it just works:
+
+```markdown
+# In your CLAUDE.md, AGENTS.md, or any AI tool config:
+
+## Memory
+Your persistent memory is at ~/Memory/
+Read files there for context. Write new learnings to daily/ or knowledge/.
+For fast search: memctl search "<query>"
+```
+
+That's it. Claude Code reads the files directly. Codex reads the files directly. Any tool that can read files gets your full context.
+
+## memctl CLI
+
+`memctl` is an optional power tool on top of the folder — quick adds, fast search, file ingestion.
+
+### Install
 
 ```bash
-# requires bun
-bun install
-bun link
+# Option 1: From source (requires Bun)
+git clone https://github.com/achen2089/memctl.git
+cd memctl && bun install && bun link
+
+# Option 2: Compiled binary (no dependencies)
+# Download from releases, drop in ~/Memory/bin/, add to PATH
+export PATH="$HOME/Memory/bin:$PATH"
 ```
 
-## Quick start
+### Setup
 
 ```bash
-# initialize config and directory structure
-memctl init
-
-# add a memory
-memctl add "Switched from Docker Compose v1 to v2 on the Mac mini"
-
-# add with a tag
-memctl add "Always bind Docker ports to 127.0.0.1" -t decision
-
-# search (hybrid keyword + semantic)
-memctl search "docker port binding"
-
-# see today's log
-memctl today
-
-# ingest a document (PDF, markdown, text)
-memctl ingest ~/Documents/paper.pdf
-
-# save a webpage
-memctl save https://example.com/article
-
-# scoped memories (per-agent/tool)
-memctl add "User prefers Bun over Node" -s claude
-memctl search "preferences" -s claude
-
-# list all memory files
-memctl list
-
-# rebuild the search index from scratch
-memctl rebuild
-
-# show config
-memctl config
+memctl init    # creates ~/.memctl/config.yaml and directory structure
 ```
 
-## Directory structure
-
-```
-<memory_dir>/
-├── daily/            # daily logs (YYYY-MM-DD.md)
-├── knowledge/        # persistent facts, preferences
-├── documents/        # ingested files + extracted text
-├── projects/         # project-specific memories
-├── scopes/           # per-agent/tool memories
-│   ├── claude/
-│   ├── pufferbot/
-│   └── ...
-└── .index/
-    └── memctl.db     # search index (rebuildable, gitignored)
-```
-
-## How search works
-
-Queries run against two systems simultaneously:
-- **FTS5** — SQLite full-text search for exact keyword matches
-- **Vector similarity** — cosine similarity against `all-MiniLM-L6-v2` embeddings
-
-Results are merged and ranked. Use `--limit` to control how many results come back.
-
-## Config
-
-Stored at `~/.memctl/config.yaml`:
+Edit `~/.memctl/config.yaml` to point at your memory folder:
 
 ```yaml
-memory_dir: ~/Library/Mobile Documents/com~apple~CloudDocs/Memory
-embedding_model: Xenova/all-MiniLM-L6-v2
-embedding_dimensions: 384
-embeddings_enabled: true
+memory_dir: ~/Memory
 ```
 
-## AI agent integration
+### Usage
 
-Add this to your agent's instruction file (`CLAUDE.md`, `AGENTS.md`, etc.):
+```bash
+# Add memories (goes to daily/ with timestamp)
+memctl add "something worth remembering"
+memctl add "always use 127.0.0.1 for Docker ports" -t decision
 
+# Write to a specific file
+memctl add "GitHub: achen2089" -f knowledge/me.md
+
+# Search (hybrid keyword + semantic)
+memctl search "docker port binding"
+
+# Raw pattern match (no index, instant)
+memctl grep "Docker"
+
+# Ingest a PDF (extracts text → markdown for AI tools to read)
+memctl ingest paper.pdf
+
+# Save a webpage
+memctl save https://example.com/article
+
+# See today's log
+memctl today
+
+# Scoped memories (per-agent/tool)
+memctl add "user prefers dark mode" -s claude
+memctl search "preferences" -s claude
 ```
+
+### Search modes
+
+| Command | How it works | When to use |
+|---------|-------------|-------------|
+| `memctl search` | FTS5 + vector similarity (needs index) | Fuzzy/semantic queries |
+| `memctl grep` | Raw pattern matching (no index) | Exact terms, instant |
+
+### Flags
+
+- `--json` — machine-readable output (search, grep)
+- `--verbose` — detailed progress (rebuild)
+- `--scope` / `-s` — isolate memories per tool/agent
+- `--tag` / `-t` — tag entries (decision, fact, preference)
+
+## How it works
+
+1. **Markdown files are the source of truth** — human-readable, editable, syncable
+2. **SQLite index is a cache** — FTS5 + vector embeddings, fully rebuildable with `memctl rebuild`
+3. **In-process embeddings** — `all-MiniLM-L6-v2` (23MB ONNX model), no external services needed
+
+## AI tool integration
+
+Add this to your project's `CLAUDE.md` or `AGENTS.md`:
+
+```markdown
 ## Memory
-Use memctl for persistent memory across sessions:
-- `memctl add "<text>"` — save a memory
-- `memctl search "<query>"` — recall memories
-- `memctl add "<text>" -s <scope>` — scoped to this tool
-- `memctl today` — see what's been logged today
+Your persistent memory is at ~/Memory/
+Read files there for context. Write new learnings to daily/ or knowledge/.
+
+Quick commands:
+- memctl add "<text>" — save a memory
+- memctl search "<query>" — find memories
+- memctl grep "<pattern>" — raw search
+- memctl today — see today's log
 ```
-
-## Tech stack
-
-- **Bun** + TypeScript
-- **bun:sqlite** with FTS5
-- **@huggingface/transformers** (all-MiniLM-L6-v2, 384 dims)
-- **commander** for CLI
-- **pdf-parse** for document ingestion
 
 ## License
 

@@ -15,16 +15,15 @@ import { configCommand } from "./commands/config";
 import { saveCommand } from "./commands/save";
 import { grepCommand } from "./commands/grep";
 
-// Read version from package.json
-const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
-const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as { version: string };
+// Version inlined for compiled binary compatibility
+const VERSION = "0.2.0";
 
 const program = new Command();
 
 program
   .name("memctl")
   .description("Personal memory CLI — markdown-first, vector-searchable, zero servers")
-  .version(pkg.version, "-V, --version", "print the current version")
+  .version(VERSION, "-V, --version", "print the current version")
   .addHelpText("after", `
 Quick Start:
   $ memctl init                          # set up config and memory directory
