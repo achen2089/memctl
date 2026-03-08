@@ -11,11 +11,8 @@ One folder. Every tool points to it. Knowledge carries across sessions, tools, a
 ├── daily/                 ← what happened today
 ├── knowledge/             ← long-lived facts and preferences
 ├── documents/             ← ingested files (PDFs → markdown)
-├── projects/              ← project-specific context
-├── cs7295/                ← course materials, lectures, handouts
-├── books/                 ← reference books
-├── papers/                ← research papers
-└── scopes/                ← per-agent/tool memories
+├── ...                    ← any folders you want (courses, books, projects)
+└── .index/                ← search index (auto-generated, ignore)
 ```
 
 Point any AI tool at this folder and it just works:
@@ -43,8 +40,8 @@ git clone https://github.com/achen2089/memctl.git
 cd memctl && bun install && bun link
 
 # Option 2: Compiled binary (no dependencies)
-# Download from releases, drop in ~/Memory/bin/, add to PATH
-export PATH="$HOME/Memory/bin:$PATH"
+# Or download the compiled binary (no dependencies)
+# Drop it anywhere in your PATH
 ```
 
 ### Setup
@@ -67,7 +64,7 @@ memctl add "something worth remembering"
 memctl add "always use 127.0.0.1 for Docker ports" -t decision
 
 # Write to a specific file
-memctl add "GitHub: achen2089" -f knowledge/me.md
+memctl add "prefer vim keybindings" -f knowledge/preferences.md
 
 # Search (hybrid keyword + semantic)
 memctl search "docker port binding"

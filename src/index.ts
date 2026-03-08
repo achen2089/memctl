@@ -70,7 +70,7 @@ program
 Examples:
   $ memctl add "prefer dark mode for all editors"
   $ memctl add "decided to use SQLite" --tag decision
-  $ memctl add "GitHub: achen2089" -f knowledge/me.md`)
+  $ memctl add "prefer vim keybindings" -f knowledge/preferences.md`)
   .action(async (text: string, options: { tag?: string; file?: string }) => {
     try {
       await addCommand(text, options);
